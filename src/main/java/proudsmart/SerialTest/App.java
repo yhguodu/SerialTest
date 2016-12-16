@@ -1,6 +1,8 @@
 package proudsmart.SerialTest;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -21,10 +23,7 @@ public class App
 {
     public static void main( String[] args ) {
     	PrintStream ps = new PrintStream(System.out);
-    	
-    	String portName = "/dev/ttyUSB0";
-    	int baudrate = 9600;
-    	
+    	    	
     	CommandLine cl = getCommandLine(ps,args);
     	if(cl == null)
     		return;
@@ -34,8 +33,30 @@ public class App
     		return;
     	}
     	
+    	if(cl.hasOption('v')) {
+    		List<CommPortIdentifier> cpiList   =  null;
+    		try {
+    				 cpiList = SerialPortManager.getAllSerialPorts();
+    				 ps.println("all the available ports at present:");
+    				 for(CommPortIdentifier cpi: cpiList) {
+    					 ps.print(cpi.getName() + " ");
+    				 }
+    				 ps.println("");
+    		}
+    		catch(Exception ee) {
+    			ps.println(ee.getMessage());
+    		}
+    		return;
+    	}
+    	
+    	String portName = "/dev/ttyUSB0";
+    	int baudrate = 9600;
+    	int counter = 1;
+    	List<String> portList = new ArrayList<String>();
+    	
     	if(cl.hasOption('p')) {
     		portName = cl.getOptionValue('p');
+    		portList.add(portName);
     	}
     	
     	if(cl.hasOption('b')) {
@@ -47,28 +68,62 @@ public class App
     			return;
     		}
     	}
-    	
-    	try {
-    		SerialPortManager.BaudRate br = SerialPortManager.getBaudRate(baudrate);
-    		SerialPortConnection spc = SerialPortConnection.newConnection(portName, br);
-    		spc.open();
-    		spc.sendMessage("hellowrold".getBytes());
+      
+    	if(cl.hasOption('n')) {
+    		try {
+    			counter = Integer.parseInt(cl.getOptionValue('n'));
+    		}
+    		catch(Exception e) {
+    			ps.println("invalid -n argument");
+    			return;
+    		}
     	}
-    	catch(Exception e) {
-    		ps.println("Error:"+e.getMessage());
+    	
+    	if(cl.hasOption("l")) {
+    		String ports = cl.getOptionValue('l');
+    		String[] tmp = ports.trim().split(",");
+    		for(String port: tmp)
+    			portList.add(port.trim());
+    	}
+    	
+    	if(cl.hasOption("all")) {
     		List<CommPortIdentifier> cpiList   =  null;
     		try {
     				 cpiList = SerialPortManager.getAllSerialPorts();
-    				 ps.println("the ports list below at available at present");
     				 for(CommPortIdentifier cpi: cpiList) {
-    					 ps.print(cpi.getName() + " ");
+    					 portList.add(cpi.getName());
     				 }
-    				 ps.println("");
     		}
     		catch(Exception ee) {
     			ps.println(ee.getMessage());
     		}
     	}
+    	
+    	
+    	if(cl.hasOption('p') == false && cl.hasOption('l') == false && cl.hasOption("all") == false) 
+    		portList.add(portName);
+    	
+    		SerialPortManager.BaudRate br = SerialPortManager.getBaudRate(baudrate);
+    		int n =0;
+    		while(n< counter) {
+    			try {
+	    			for(String port: portList) {
+	    				SerialPortConnection spc = SerialPortConnection.newConnection(port, br);
+	    	    		spc.open();
+	    	    		String wel = "hello,"+port;
+	    	    		spc.sendMessage(wel.getBytes());
+	    	    		System.out.println("port open successful:"+ port+ " with time:"+(n+1));
+	    	    		spc.close();
+	    			}
+	    			n++;
+	    			Thread.currentThread().sleep(100);
+    			}
+    		  	catch(Exception e) {
+    	    		ps.println("Error:"+e.getMessage());
+    	    		return;
+    	    	}
+    		}
+
     }
     
     private static CommandLine getCommandLine(PrintStream out, String[] args) {
@@ -91,13 +146,20 @@ public class App
     
     private static Options options() {
         Options options = new Options();
-        options.addOption("h", "help", true, "Usage information." );
+        options.addOption("h", "help", false, "Usage information." );
         options.addOption("p", "port name", true,  "REQUIRED. Specifies the " +
-                "port name you want to open ."+
+                "port name you want to open .\n"+
         		"default vaule: /dev/ttyUSB0");
         options.addOption("b", "baudrate", true, "REQUIRED. Specifies the"+
-                "the baudrate with the port"+
+                "baudrate with the port.\n"+
         		"default value: 9600");
+        options.addOption("v", "availableports", false, "Usage information.\n"+
+                "list all the available ports at present");
+        options.addOption("l", "ports need to be tested", true, "REQUIRED."+
+                "test the required ports in the parameters,ports separated by comma");
+        options.addOption("n", "test counter", true, "REQUIRED.Specifies the times for the test");
+        options.addOption("all", "test all the ports", false, "Usage information."+
+                "test all the ports list in the gnu.io.properties file");
         return options;
     }
     

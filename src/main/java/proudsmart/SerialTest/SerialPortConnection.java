@@ -52,7 +52,7 @@ public class SerialPortConnection implements PortConnection {
 		CommPortIdentifier portId = SerialPortManager.getSerialPort(portName);
 
 		// Open that port. We use baud rate 57600.
-		hostPort = SerialPortManager.openPort(portId, BaudRate.B_57600);
+		hostPort = SerialPortManager.openPort(portId, br);
 		out = hostPort.getOutputStream();
 		// Create event listener on port.
 		// When new data comes in, event listener will process the data.
@@ -77,13 +77,11 @@ public class SerialPortConnection implements PortConnection {
 				hostPort.close();
 
 			hostPort = null;
-
-			System.out.println("Port is closed");
 		}
 	}
 	
 	public void sendMessage(byte[] data) throws IOException {
-		logger.info("add message:"+Converter.ByteArrayToHexString(data));
+		logger.info("send message:"+new String(data));
 		if(out != null)
 			out.write(data);
 	}
